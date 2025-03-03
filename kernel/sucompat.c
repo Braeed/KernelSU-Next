@@ -150,7 +150,7 @@ int ksu_handle_execveat_sucompat(int *fd, struct filename **filename_ptr,
 	pr_info("do_execveat_common su found\n");
 	memcpy((void *)filename->name, sh, sizeof(sh));
 
-	escape_to_root();
+	ksu_escape_to_root();
 
 	return 0;
 }

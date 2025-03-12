@@ -7,14 +7,6 @@ config KSU
 	help
 	  Enable kernel-level root privileges on Android System.
 
-config KSU_KPROBES_HOOK
-	bool "Use kprobes for kernelsu"
-	depends on KSU
-	depends on KPROBES
-	default y
-	help
-	  Disable if you use manual hooks.
-
 config KSU_DEBUG
 	bool "KernelSU debug mode"
 	depends on KSU

@@ -706,16 +706,19 @@ int ksu_sb_mount(const char *dev_name, const struct path *path,
 		return 0;
 	}
 }
+#ifndef DEVPTS_SUPER_MAGIC
+#define DEVPTS_SUPER_MAGIC	0x1cd1
+#endif
 
-extern int ksu_handle_devpts(struct inode *inode); // sucompat.c
+extern int __ksu_handle_devpts(struct inode *inode); // sucompat.c
 
-static int ksu_inode_permission(struct inode *inode, int mask)
+int ksu_inode_permission(struct inode *inode, int mask)
 {
 	if (unlikely(inode->i_sb && inode->i_sb->s_magic == DEVPTS_SUPER_MAGIC)) {
 #ifdef CONFIG_KSU_DEBUG
 		pr_info("%s: devpts inode accessed with mask: %x\n", __func__, mask);
 #endif
-		ksu_handle_devpts(inode);
+		__ksu_handle_devpts(inode);
 	}
 	return 0;
 }

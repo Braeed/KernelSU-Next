@@ -23,11 +23,8 @@
 #define SU_PATH "/system/bin/su"
 #define SH_PATH "/system/bin/sh"
 
-#ifndef CONFIG_KSU_KPROBES_HOOK
-static bool ksu_sucompat_non_kp __read_mostly = true;
-#endif
 
-extern void escape_to_root();
+extern void ksu_escape_to_root();
 
 static bool ksu_sucompat_non_kp __read_mostly = true;
 
@@ -88,7 +85,7 @@ static int ksu_sucompat_user_common(const char __user **filename_user,
 	if (escalate) {
 		pr_info("%s su found\n", syscall_name);
 		*filename_user = ksud_user_path();
-		escape_to_root(); // escalate !!
+		ksu_escape_to_root(); // escalate !!
 	} else {
 		pr_info("%s su->sh!\n", syscall_name);
 		*filename_user = sh_user_path();
@@ -127,7 +124,36 @@ int ksu_handle_execve_sucompat(int *fd, const char __user **filename_user,
 	return ksu_sucompat_user_common(filename_user, "sys_execve", true);
 }
 
-// the call from execve_handler_pre won't provided correct value for __never_use_argument, use them after fix execve_handler_pre, keeping them for consistence for manually patched code
+// getname_flags on fs/namei.c, this hooks ALL fs-related syscalls.
+// NOT RECOMMENDED for daily use. mostly for debugging purposes.
+int ksu_getname_flags_user(const char __user **filename_user, int flags)
+{
+	if (!is_su_allowed((const void *)filename_user))
+		return 0;
+
+	// sys_execve always calls getname, which sets flags = 0 on getname_flags
+	// we can use it to deduce if caller is likely execve
+	return ksu_sucompat_user_common(filename_user, "getname_flags", !!!flags);
+}
+
+static int ksu_sucompat_kernel_common(void *filename_ptr, const char *function_name, bool escalate)
+{
+
+	if (likely(memcmp(filename_ptr, SU_PATH, sizeof(SU_PATH))))
+		return 0;
+
+	if (escalate) {
+		pr_info("%s su found\n", function_name);
+		memcpy(filename_ptr, KSUD_PATH, sizeof(KSUD_PATH));
+		ksu_escape_to_root();
+	} else {
+		pr_info("%s su->sh\n", function_name);
+		memcpy(filename_ptr, SH_PATH, sizeof(SH_PATH));
+	}
+	return 0;
+}
+
+
 int ksu_handle_execveat_sucompat(int *fd, struct filename **filename_ptr,
 				 void *__never_use_argv, void *__never_use_envp,
 				 int *__never_use_flags)
